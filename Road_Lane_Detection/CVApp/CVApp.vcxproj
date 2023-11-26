@@ -142,10 +142,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="RoadLaneDetection.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="RoadLaneDetector.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

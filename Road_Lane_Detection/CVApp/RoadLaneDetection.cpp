@@ -58,7 +58,9 @@ Mat RoadLaneDetector::limit_region(Mat img_edges) {
 	};
 
 	//정점으로 정의된 다각형 내부의 색상을 채워 그린다.
-	fillConvexPoly(mask, points, 4, Scalar(255, 0, 0));
+	fillConvexPoly(mask, points, 4, Scalar(255));
+	namedWindow("mask", 0);
+	imshow("mask", mask);
 
 	//결과를 얻기 위해 edges 이미지와 mask를 곱한다.
 	bitwise_and(img_edges, mask, output);
