@@ -4,11 +4,9 @@
 
 using namespace std;
 using namespace cv;
-
 // 프레임 변수
 Mat frame, gray, edges, result;
 int width, height;
-
 
 // HoughLinesP 함수 인자
 double rho = 2;
@@ -17,15 +15,9 @@ int hough_threshold = 100;
 double minLineLength = 100;
 double maxLineGap = 250;
 
-//방향 판단 인자
-double prev_center=2000;
-int change_lane = -1;  // 차선 변경 횟수
-
-
 // 기울기 threshold
 double slope_min_threshold = 0.6;
 double slope_max_threshold = 1.2;
-
 
 // 누적 line 저장 벡터 변수
 vector<Vec4i> r_save_lines;
@@ -37,7 +29,7 @@ int left_sum[4] = { 0 };
 int left_avg[4];
 int l_save_cnt = 0;
 
-//warning 조건 검사
+//프레임별로 warning 조건 저장할 스택
 vector<bool> warning_vec = { false };
 
 // 화면에서 line을 검출할 영역(ROI) 설정
@@ -106,9 +98,11 @@ void filterByColor(Mat image, Mat& filtered)
 }
 //방향 전환 함수
 string changeDir(string output_s, float ratio, float left_thres, float right_thres) {
-	if (ratio > left_thres) {
+	//ratio가 지정한 left threshold보다 크면 output string을 "Left Turn"으로 지정한다.
+	if (ratio > left_thres) { 
 		output_s = "Left Turn";
-	}
+	} 
+	//ratio가 지정한 right threshold보다 크면 output string을 "Right Turn"으로 지정한다.
 	else if (ratio < right_thres) {
 		output_s = "Right Turn";
 	}
@@ -116,17 +110,14 @@ string changeDir(string output_s, float ratio, float left_thres, float right_thr
 		output_s = "Straight";
 	}
 	return output_s;
-
 }
 
 // 차선 검출
 void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 {
-	
-	bool warning = false;
-	vector<double> slopes;
-	vector<Vec4i> filtered_lines;
-	vector<Vec4i> warning_lines;
+	bool warning = false; //현재 프레임의 WARNING 상태 제어 변수
+	vector<double> slopes; 
+	vector<Vec4i> filtered_lines; //허프 transform에서 검출된 직선 중에서 기울기로 필터링된 lines
 
 	// 각 선분의 기울기를 구한다
 	int lines_size = (int)lines.size();
@@ -150,11 +141,6 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 			slopes.push_back(slope);
 			filtered_lines.push_back(line);
 		}
-		// 기울기가 1.6보다 크고 끝점의 x 좌표가 영상의 중앙에 위치하면 warning 상태이다.
-		//if (abs(slope) > 2 && (x1 > width * 0.4 && x1 < width * 0.5) && (x2 > width * 0.4 && x2 < width * 0.55)) {
-		//	warning = true;
-		//	warning_lines.push_back(line);
-		//}
 	}
 	Mat tmp1 = frame.clone();
 	// lines에 저장된 선분 그리기
@@ -166,18 +152,9 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 	// 결과를 표시
 	namedWindow("Hough Lines", 0);
 	imshow("Hough Lines", tmp1);
-	//// 기울기로 필터링한 후 어떤 선분이 남는지 확인하는 코드
-	//Mat tmp2 = frame.clone();
-	//for (Vec4i l : warning_lines) {
-	//	line(tmp2, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 2);
-	//}
-	//namedWindow("warning_lines", 0);
-	//imshow("warning_lines", tmp2);
-
 
 	// 왼쪽 line과 오른쪽 line을 고른다.
-	// 기준 1: 오른쪽 차선의 기울기는 양수, 왼쪽 차선의 기울기는 음수
-	// 기준 2: 오른쪽 차선의 x 좌표 평균값 > 중앙 
+	// 기준: 오른쪽 차선의 기울기는 0.6보다 큰 경우, 왼쪽 차선의 기울기는 -0.6보다 작은 경우 
 	vector<Vec4i> right_lines;
 	vector<Vec4i> left_lines;
 	int center_x = (int)(width * 0.5);  // 중앙 x 좌표
@@ -192,38 +169,31 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 		double slope = slopes[i];
 		int avg_x = (x1 + x2) >> 1;  // 비트 연산자 사용해서 속도 ↑
 
-		// 기울기 > 0, x 좌표 평균값 > 중앙 x 좌표이면 오른쪽 선으로 저장 avg_x > center_x
+		// 기울기 > 0.6 인 경우 오른쪽 차선
 		if (slope > 0.6) {
 			right_lines.push_back(line);
 		}
-		// 기울기 < 0, x 좌표 평균값 < 중앙 x 좌표이면 왼쪽 선으로 저장
+		// 기울기 < -0.6 인 경우 왼쪽 차선
 		else if (slope < -0.6) {
 			left_lines.push_back(line);
 		}
 	}
-	//warning 조건(left,right line이 모두 검출이 안되고 이전 5개 프레임에서도 warning 상태였다면)
+	//warning 조건(left,right line이 모두 검출이 안되고 이전 3개 프레임에서도 warning 상태였다면)
 	size_t vectorSize = warning_vec.size();
-
 	if (left_lines.size() == 0 && right_lines.size() == 0) {
 		if (vectorSize >= 5 &&
 			warning_vec[vectorSize - 1] &&
 			warning_vec[vectorSize - 2] &&
-			warning_vec[vectorSize - 3] &&
-			warning_vec[vectorSize - 4] &&
-			warning_vec[vectorSize - 5]) {
+			warning_vec[vectorSize - 3] ) {
 			warning = true;
 		}
 		else {
-			printf("warning 조건");
 			warning_vec.push_back(true);
 		}
 	} else {
 		warning_vec.push_back(false);
 	}
-	//warning 조건(수정전)
-	/*if (left_lines.size() == 0 && right_lines.size() == 0) {
-		warning = true;
-	}*/
+	
 	Mat tmp3 = frame.clone();
 	// right_lines에 저장된 선분 그리기
 	for (size_t i = 0; i < right_lines.size(); i++) {
@@ -238,90 +208,17 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 		
 		line(tmp3, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 255, 0), 2, LINE_AA);
 	}
-	//int right_lines_size = (int)right_lines.size();
 
-	//// 오른쪽 filtered line이 하나라도 있으면 평균 구하기
-	//if (right_lines_size != 0) {
-	//	
-	//	// 가장 옛날에 저장한 right line을 삭제하고 평균 line을 추가
-	//	r_save_lines.erase(r_save_lines.begin(), r_save_lines.begin() + 1);
-	//	r_save_lines.push_back(Vec4i(max_line[0], max_line[1], max_line[2], max_line[3]));
-
-	//	r_save_cnt++;
-	//}
-	//int left_lines_size = (int)left_lines.size();
-
-	//// 왼쪽 filtered line이 하나라도 있으면 좌표값 평균 구하기
-	//if (left_lines_size != 0) {
-
-	//	// 가장 옛날에 저장한 left line을 삭제하고 평균 line을 추가
-	//	l_save_lines.erase(l_save_lines.begin(), l_save_lines.begin() + 1);
-	//	l_save_lines.push_back(Vec4i(min_line[0], min_line[1], min_line[2], min_line[3]));
-
-	//	l_save_cnt++;
-	//}
 	// 결과를 표시
 	namedWindow("filtered Lines", 0);
 	imshow("filtered Lines", tmp3);
 
-	////선형 회귀 로직
-	//Point p1, p2, p3, p4;
-	//vector<Point> left_points, right_points;
-	//Vec4d left_line, right_line;
-	//Point right_b, left_b;
-	//double right_m = 1.5;
-	//double left_m = -1.5;
-	//for (auto i : right_lines) {
-	//	p1 = Point(i[0], i[1]);
-	//	p2 = Point(i[2], i[3]);
-
-	//	right_points.push_back(p1);
-	//	right_points.push_back(p2);
-	//}
-	//if (right_points.size() > 0) {
-	//	//주어진 contour에 최적화된 직선 추출
-	//	fitLine(right_points, right_line, DIST_L2, 0, 0.01, 0.01);
-
-	//	right_m = right_line[1] / right_line[0];  //기울기
-	//	right_b = Point(right_line[2], right_line[3]);
-	//}
-
-	//for (auto j : left_lines) {
-	//	p3 = Point(j[0], j[1]);
-	//	p4 = Point(j[2], j[3]);
-
-	//	left_points.push_back(p3);
-	//	left_points.push_back(p4);
-	//}
-
-	//if (left_points.size() > 0) {
-	//	//주어진 contour에 최적화된 직선 추출
-	//	fitLine(left_points, left_line, DIST_L2, 0, 0.01, 0.01);
-
-	//	left_m = left_line[1] / left_line[0];  //기울기
-	//	left_b = Point(left_line[2], left_line[3]);
-	//}
-
-	////좌우 선 각각의 두 점을 계산한다.
-	////y = m*x + b  --> x = (y-b) / m
-	//int y1 = height;
-	//int y2 = (int)(height * 0.6);
-
-	//double right_x1 = ((y1 - right_b.y) / right_m) + right_b.x;
-	//double right_x2 = ((y2 - right_b.y) / right_m) + right_b.x;
-
-	//double left_x1 = ((y1 - left_b.y) / left_m) + left_b.x;
-	//double left_x2 = ((y2 - left_b.y) / left_m) + left_b.x;
-
-
 	//// ---------- 1) filtered line 평균 구하기
 
 	// 오른쪽 filtered line 평균 구하기
-	right_sum[0] = 0;
-	right_sum[1] = 0;
-	right_sum[2] = 0;
-	right_sum[3] = 0;
+	fill(begin(right_sum), end(right_sum), 0);
 
+	//오른쪽 라인에서 가장 바깥쪽의 x좌표 구하기
 	int right_lines_size = (int)right_lines.size();
 	int max_right_x = numeric_limits<int>::min(); // max_right_x를 가장 작은 값으로 초기화
 	int max_i = 0;
@@ -332,17 +229,14 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 			max_right_x = current_max_x;
 			max_i = i;
 		}
-		
 	}
-
 	for (int i = 0; i < right_lines_size; i++) {
 		Vec4i line = right_lines[i];
-
 		int x1 = line[0];
 		int y1 = line[1];
 		int x2 = line[2];
 		int y2 = line[3];
-		if (i == max_i) {
+		if (i == max_i) { //오른쪽에서 가장 바깥쪽 라인의 가중치를 높게 주기
 			right_sum[0] += (5 * x1);
 			right_sum[1] += (5 * y1);
 			right_sum[2] += (5 * x2);
@@ -484,7 +378,7 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 		left_avg[3] = (int)((double)left_sum[3] / 12);
 	}
 
-	// ---------- 3) 대표 line 구하기
+	// ---------- 3) 대표 line의 두 점의 좌표 구하기
 
 	// 오른쪽 대표 line 좌표와 기울기
 	int right_x = right_avg[0];
@@ -493,7 +387,6 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 	double right_dy = (double)right_avg[1] - right_avg[3];
 	// zero divison을 막기 위함
 	if (right_dx == 0.0) right_dx = 0.001;
-	if (right_dy == 0.0) right_dy = 0.001;
 	double right_slope = right_dy / right_dx;
 
 	// 왼쪽 대표 line 좌표와 기울기
@@ -503,7 +396,6 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 	double left_dy = (double)left_avg[1] - left_avg[3];
 	// zero divison을 막기 위함
 	if (left_dx == 0.0) left_dx = 0.001;
-	if (left_dy == 0.0) left_dy = 0.001;
 	double left_slope = left_dy / left_dx;
 
 	// 오른쪽 왼쪽 대표 line 좌표 구하기
@@ -547,52 +439,40 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 	double left_m = (double)(y1 - y2) /(double)(left_x1 - left_x2);
 	int right_X,left_X,small_right_X, small_left_X;
 	if (right_x1 < right_x2) {
-		right_X = right_x2; //오른쪽 큰 x
-		small_right_X = right_x1; //오른쪽 작은 x
+		right_X = right_x2; //사다리꼴 오른쪽 아래 x
+		small_right_X = right_x1; //사다리꼴 오른쪽 위 x
 	}
 	else {
-		right_X = right_x1;
+		right_X = right_x1; 
 		small_right_X = right_x2;
 	}
 	if (left_x1 > left_x2) {
-		left_X = left_x2;
-		small_left_X = left_x1;
+		left_X = left_x2; //사다리꼴 왼쪽 아래 x
+		small_left_X = left_x1; //사다리꼴 왼쪽 위 x
 	}
 	else {
 		left_X = left_x1;
 		small_left_X = left_x2;
 	}
-	double down_center = (left_X + right_X) >> 1;
-	double up_center = (small_left_X + small_right_X) >> 1;
-	double center = (down_center + up_center) /2;
-	double down_len = right_X - left_X;
-	if ((down_len/width) > 0.7) {
-		center += 50;
-	}
+
 	//두 차선이 교차하는 지점 계산
 	x = (double)(((right_m * right_x1) - (left_m * left_x1))  / (right_m - left_m));
-	//printf("x: %f, center: %f \n", x, center);
-	float right_ud_x = (right_X + small_right_X) >> 1;
-	float left_ud_x = (left_X + small_left_X) >> 1;
-	float ratio = (float)(right_ud_x - x) / (x - left_ud_x);
 
+	//ratio 계산
 	float up_ratio = (float)(small_right_X - x) / (x - small_left_X);
 	float down_ratio = (float)(right_X - x) / (x - left_X);
 	float avg_ratio = (up_ratio + down_ratio)/2;
-	printf("ratio: %f\n",  ratio);
-	/*if (x >= (center ) && x <= (center)) {
-		output = "Straight";
-		
-	}
-	else if (x > center ) {
-		output = "Right Turn";
 	
+	//사다리꼴의 윗변 아랫변의 중심점
+	double down_center = (left_X + right_X) >> 1;
+	double up_center = (small_left_X + small_right_X) >> 1;
+	double center = (down_center + up_center) / 2;
+
+	double down_len = right_X - left_X;
+	if ((down_len / width) > 0.7) {
+		center += 50;
 	}
-	else if (x < center){
-		output = "Left Turn";
-		
-	}*/
-	printf("prev_center:%f\n", prev_center);
+	
 	if (center < 850) {
 		output = changeDir(output, avg_ratio, 0.93, 0.64);
 	}
@@ -602,30 +482,7 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 	else {
 		output = changeDir(output, avg_ratio, 1.25, 0.75);
 	}
-	//if (change_lane < 1) {
-	//	if (center < 850 && prev_center>850) {
-	//		output = changeDir(output, ratio, 0.85, 0.64);
-	//		change_lane += 1; //차선 변경 횟수 증가
-	//	}
-	//	else if (center > 850 && prev_center > 850) {
-	//		change_lane += 1;
-	//		output = changeDir(output, ratio, 1.2, 0.65);
-	//	}
-	//	else {
-	//		output = changeDir(output, ratio, 1.2, 0.65);
-	//	}
-	//}
-	//else {
-	//	if (center < 850) {
-	//		output = changeDir(output, ratio, 0.75, 0.64);
-	//	}
-	//	else {
-	//		output = changeDir(output, ratio, 1.2, 0.65);
-	//	}
-	//}
-	//printf("change lane 횟수: %d\n", change_lane);
-	// 이번에 계산한 center를 이전 center로 저장
-	prev_center = center;
+	
 
 	putText(mark, output, Point(50, 100), FONT_HERSHEY_PLAIN, 3, Scalar(255, 255, 255), 3);
 	
@@ -634,7 +491,7 @@ void detectLane(Mat& mark, Mat& detected, vector<Vec4i> lines)
 
 int main(int argc, char** argv) {
 	// 동영상을 연다.
-	VideoCapture video("clip3.mp4");
+	VideoCapture video("clip2.mp4");
 
 	// 동영상이 유효한지 확인한다.
 	if (!video.isOpened()) {
@@ -659,6 +516,7 @@ int main(int argc, char** argv) {
 
 	VideoWriter writer;
 	int codec = VideoWriter::fourcc('X', 'V', 'I', 'D');  //원하는 코덱 선택
+	// 동영상 파일의 초당 프레임 수를 불러온다.
 	double fps = video.get(CAP_PROP_FPS);  //프레임
 	string filename = "./result.avi";  //결과 파일
 
@@ -667,9 +525,6 @@ int main(int argc, char** argv) {
 		cout << "출력을 위한 비디오 파일을 열 수 없습니다. \n";
 		return -1;
 	}
-
-	// 동영상 파일의 초당 프레임 수를 불러온다.
-	//double fps = video.get(CAP_PROP_FPS);
 
 	// 프레임 사이의 간격을 계산한다.
 	int delay = cvRound(1000 / fps);
@@ -683,7 +538,6 @@ int main(int argc, char** argv) {
 	// 동영상이 끝날 때까지 영상을 출력한다.
 	do {
 		// 동영상으로부터 영상을 읽어 frame에 넣는다.
-		
 		video.read(frame);
 
 		// 영상이 유효한지 확인한다.
@@ -691,7 +545,6 @@ int main(int argc, char** argv) {
 			destroyAllWindows();
 			break;
 		}
-		//printf("width:%d height:%d\n", width, height);
 
 		// 컬러 범위를 통해 후보 영역을 필터링한다.
 		Mat ROI_colors;
@@ -705,6 +558,7 @@ int main(int argc, char** argv) {
 		Canny(gray, edges, 100, 200);
 		namedWindow("Canny Edges", 0);
 		imshow("Canny Edges", edges);
+
 		// 차선을 검출할 영역을 제한한다.
 		Point points[4];
 		points[0] = Point((int)(width * 0.15), (int)(height * 0.8));
@@ -716,9 +570,6 @@ int main(int argc, char** argv) {
 		namedWindow("ROI Canny Edges",0);
 		imshow("ROI Canny Edges", edges);
 
-		//Mat uImage_edges;
-		//edges.copyTo(uImage_edges);
-
 		// line을 검출한다.
 		vector<Vec4i> lines;
 		HoughLinesP(edges, lines, rho, theta, hough_threshold, minLineLength, maxLineGap);
@@ -727,12 +578,6 @@ int main(int argc, char** argv) {
 		Mat mark = Mat::zeros(frame.rows, frame.cols, CV_8UC3);
 		Mat detected = Mat::zeros(frame.rows, frame.cols, CV_8UC3);
 		detectLane(mark, detected, lines);
-		/*namedWindow("mark", 0);
-		imshow("mark", mark);
-		namedWindow("detected", 0);
-		imshow("detected", detected);
-		namedWindow("frame", 0);
-		imshow("frame", frame);*/
 
 		// 원본 영상에 차선을 표시한다.
 		mark.copyTo(frame, mark);

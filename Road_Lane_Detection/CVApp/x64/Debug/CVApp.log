@@ -2,13 +2,10 @@
 D:\OpenCV\build\install\include\opencv2\core.hpp(1187,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오.
 D:\OpenCV\build\install\include\opencv2\core.hpp(1187,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오.
 D:\OpenCV\build\install\include\opencv2\core.hpp(1187,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오.
-D:\Lane_Detection\Road_Lane_Detection5 - 복사본 (3)\CVApp\main.cpp(574,19): warning C4244: '초기화 중': 'int'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-D:\Lane_Detection\Road_Lane_Detection5 - 복사본 (3)\CVApp\main.cpp(575,18): warning C4244: '초기화 중': 'int'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-D:\Lane_Detection\Road_Lane_Detection5 - 복사본 (3)\CVApp\main.cpp(576,14): warning C4244: '초기화 중': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-D:\Lane_Detection\Road_Lane_Detection5 - 복사본 (3)\CVApp\main.cpp(577,17): warning C4244: '초기화 중': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-D:\Lane_Detection\Road_Lane_Detection5 - 복사본 (3)\CVApp\main.cpp(578,19): warning C4244: '초기화 중': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-D:\Lane_Detection\Road_Lane_Detection5 - 복사본 (3)\CVApp\main.cpp(595,47): warning C4305: '인수': 'double'에서 'float'(으)로 잘립니다.
-D:\Lane_Detection\Road_Lane_Detection5 - 복사본 (3)\CVApp\main.cpp(595,41): warning C4305: '인수': 'double'에서 'float'(으)로 잘립니다.
-D:\Lane_Detection\Road_Lane_Detection5 - 복사본 (3)\CVApp\main.cpp(598,41): warning C4305: '인수': 'double'에서 'float'(으)로 잘립니다.
-D:\Lane_Detection\Road_Lane_Detection5 - 복사본 (3)\CVApp\main.cpp(663,50): warning C4305: '인수': 'int'에서 'bool'(으)로 잘립니다.
-  CVApp.vcxproj -> D:\Lane_Detection\Road_Lane_Detection5 - 복사본 (3)\x64\Debug\CVApp.exe
+D:\lane_detect_new\Road_Lane_Detection\CVApp\main.cpp(462,17): warning C4244: '초기화 중': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+D:\lane_detect_new\Road_Lane_Detection\CVApp\main.cpp(463,19): warning C4244: '초기화 중': 'double'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+D:\lane_detect_new\Road_Lane_Detection\CVApp\main.cpp(477,47): warning C4305: '인수': 'double'에서 'float'(으)로 잘립니다.
+D:\lane_detect_new\Road_Lane_Detection\CVApp\main.cpp(477,41): warning C4305: '인수': 'double'에서 'float'(으)로 잘립니다.
+D:\lane_detect_new\Road_Lane_Detection\CVApp\main.cpp(480,41): warning C4305: '인수': 'double'에서 'float'(으)로 잘립니다.
+D:\lane_detect_new\Road_Lane_Detection\CVApp\main.cpp(523,50): warning C4305: '인수': 'int'에서 'bool'(으)로 잘립니다.
+  CVApp.vcxproj -> D:\lane_detect_new\Road_Lane_Detection\x64\Debug\CVApp.exe
